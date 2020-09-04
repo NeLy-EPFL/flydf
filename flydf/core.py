@@ -19,6 +19,18 @@ def _fix_dtypes(df):
         else:
             df[col_name] = df[col_name].astype(dtype)
     return df
+
+
+def _agg_function(series):
+    series = series.dropna()
+    series = series.drop_duplicates(keep="first")
+    if len(series) == 1:
+        return series.iloc[0]
+    elif len(series) == 0:
+        return np.nan
+    else:
+        raise ValueError("Trying to overwrite existing values with different values.")
+    
         
 
 def add_data(df, genotype, date, fly, trial, column_names, data):
@@ -53,18 +65,26 @@ def add_data(df, genotype, date, fly, trial, column_names, data):
     new_data_df["Frame"] = np.arange(len(data))
     
     if not set(default_columns).issubset(set(df.columns)):
-        raise ValueError(f"df need to have columns {list(default_columns)}")
+        raise ValueError(f"df need to have columns {default_columns}")
 
     existing_columns = set(column_names).intersection(set(df.columns))
     new_columns = set(column_names).difference(set(df.columns))
 
     if not existing_columns.issubset(set(default_columns)):
         df = df.append(new_data_df[existing_columns.union(set(default_columns))], ignore_index=True, sort=False)
-        if df.duplicated(subset=list(default_columns)).any():
-            raise ValueError("Contains duplicates")
+        if df.duplicated(subset=default_columns).any():
+            agg_functions = {}
+            #for col in set(df.columns).difference(existing_columns):
+            #    agg_functions[col] = "first"
+            #for col in set(df.columns).difference(existing_columns):
+            #for col in existing_columns.difference(set(default_columns)):
+            for col in set(df.columns).difference(set(default_columns)):
+                agg_functions[col] = _agg_function
+            df = df.groupby(default_columns).agg(agg_functions)
+            df = df.reset_index()
     
     if len(new_columns) > 0:
-        df = pd.merge(df, new_data_df[new_columns.union(set(default_columns))], on=list(default_columns), how="outer", validate="one_to_one")
+        df = pd.merge(df, new_data_df[new_columns.union(set(default_columns))], on=default_columns, how="outer", validate="one_to_one")
 
     return _fix_dtypes(df)
 
@@ -140,3 +160,11 @@ def n_frame_epochs_only(df, n):
         if epoch_df.shape[0] >= n:
             new_df = new_df.append(epoch_df)
     return new_df
+
+
+def get_trial_df(df, genotype, date, fly, trial):
+    return df[(df["Genotype"] == genotype) &
+              (df["Date"] == date) &
+              (df["Fly"] == fly) &
+              (df["Trial"] == trial)
+             ]

@@ -29,6 +29,7 @@ def check_df_values(df, data, genotype, date, fly, trial, columns):
             df_value = df_frame.at[index, col]
             assert df_value == data[frame, i]
 
+
 def test_add_data(test_df):
     df = pd.DataFrame(columns=["Genotype", "Date", "Fly", "Trial", "Frame"])
     for genotype in ["R57C10", "SS123245"]:
@@ -59,8 +60,31 @@ def test_add_data(test_df):
                         ]
     assert previous_df.isnull().values.all()
 
+    # Replace NaN values of columns that were automatically filled.
+    genotype = "R57C10"
+    date = 191220
+    fly = 1
+    trial = 4
+    nan_columns = [f"Column {i}" for i in range(4, 6)]
+    nan_data = np.random.rand(3, 2)
+    old_columns = [f"Column {i}" for i in range(4)]
+    old_data = flydf.get_trial_df(df, genotype, date, fly, trial)[old_columns].values
+    df = flydf.add_data(df, genotype, date, fly, trial, nan_columns, nan_data)
+    data = np.concatenate([old_data, nan_data], axis=1)
+    columns = old_columns + nan_columns
+    check_df_values(df, data, genotype, date, fly, trial, columns)
+
+    # Raises error when you try to add duplicates with differing values
+    with pytest.raises(ValueError):
+        df = flydf.add_data(df, genotype, date, fly, trial, nan_columns, nan_data + 1)
+    partial_overlap_columns = ["Column 4", "Column 6"]
+    with pytest.raises(ValueError):
+        df = flydf.add_data(df, genotype, date, fly, trial, partial_overlap_columns, nan_data + 1)
+    # Doesn't raise when duplicate values are the same
+    df = flydf.add_data(df, genotype, date, fly, trial, partial_overlap_columns, nan_data)
+
     # Add additional columns to existing data
-    data = np.random.rand(5, 2)
+    data = np.random.rand(3, 2)
     old_number_of_entries = df.shape[0]
     columns = [f"New column {i}" for i in range(data.shape[1])]
     df = flydf.add_data(df, genotype, date, fly, trial, columns, data)
@@ -147,7 +171,6 @@ def test_split_into_epoch_dfs(test_df):
         epoch_df = epoch_df.sort_values("Frame", axis="index")
 
         frame_to_frame_intervals = np.diff(epoch_df["Frame"].values)
-        print(frame_to_frame_intervals)
         assert len(set(frame_to_frame_intervals)) == 1
         assert np.isclose(frame_to_frame_intervals[0], 1)
 
