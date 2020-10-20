@@ -139,6 +139,21 @@ def split_into_epoch_dfs(df):
             yield trial_df[start:stop]
 
 
+def add_epoch_column(df):
+    """
+    Adds a column with an index for different epochs.
+    """
+    index_df = pd.DataFrame()
+    for index, epoch_df in enumerate(split_into_epoch_dfs(df)):
+        epoch_df = epoch_df[default_columns]
+        epoch_df["Epoch index"] = index
+        index_df = index_df.append(epoch_df)
+    print("Before merging:", df.shape)
+    df = df.merge(index_df, how="outer", on=default_columns)
+    print("After merging:", df.shape)
+    return df
+
+
 def number_of_epochs(df):
     """
     Returns the number of epochs in a pandas.DataFrame.
@@ -168,3 +183,13 @@ def get_trial_df(df, genotype, date, fly, trial):
               (df["Fly"] == fly) &
               (df["Trial"] == trial)
              ]
+
+
+def get_trial_information(df):
+    if number_of_epochs(df) != 1:
+        raise ValueError("DataFrame has more than one epoch.")
+    date = df["Date"].iloc[0]
+    genotype = df["Genotype"].iloc[0]
+    fly = df["Fly"].iloc[0]
+    trial = df["Trial"].iloc[0]
+    return date, genotype, fly, trial
