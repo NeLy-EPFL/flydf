@@ -148,9 +148,7 @@ def add_epoch_column(df):
         epoch_df = epoch_df[default_columns]
         epoch_df["Epoch index"] = index
         index_df = index_df.append(epoch_df)
-    print("Before merging:", df.shape)
     df = df.merge(index_df, how="outer", on=default_columns)
-    print("After merging:", df.shape)
     return df
 
 
