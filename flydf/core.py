@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 
+from tqdm import tqdm
+
+
 default_columns_dtypes = {
         "Genotype": "category",
         "Date": "category",
@@ -139,15 +142,33 @@ def split_into_epoch_dfs(df):
             yield trial_df[start:stop]
 
 
-def add_epoch_column(df):
+def split_into_dfs_by_column(df, column):
+    """
+    Splits finding different values in a given column.
+    """
+    if column is None:
+        yield df
+        return
+    levels = df[column].unique()
+    for level in levels:
+        yield df[df[column] == level]
+    return
+
+
+def add_epoch_column(df, extra_column=None):
     """
     Adds a column with an index for different epochs.
+    Extra column can be used to split finer than frames,
+    e.g. using annotations.
     """
     index_df = pd.DataFrame()
-    for index, epoch_df in enumerate(split_into_epoch_dfs(df)):
-        epoch_df = epoch_df[default_columns]
-        epoch_df["Epoch index"] = index
-        index_df = index_df.append(epoch_df)
+    index = 0
+    for epoch_df in split_into_epoch_dfs(df):
+        for extra_column_epoch_df in split_into_dfs_by_column(epoch_df, extra_column):
+            extra_column_epoch_df = extra_column_epoch_df[default_columns]
+            extra_column_epoch_df["Epoch index"] = index
+            index_df = index_df.append(extra_column_epoch_df)
+            index += 1
     df = df.merge(index_df, how="outer", on=default_columns)
     return df
 
