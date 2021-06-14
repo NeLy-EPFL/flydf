@@ -212,3 +212,15 @@ def get_trial_information(df):
     fly = df["Fly"].iloc[0]
     trial = df["Trial"].iloc[0]
     return date, genotype, fly, trial
+
+
+def get_trial_masks(df):
+    for genotype in df["Genotype"].unique():
+        genotype_mask = (df["Genotype"] == genotype)
+        for date in df.loc[genotype_mask, "Date"].unique():
+            date_mask = (df["Date"] == date) & genotype_mask
+            for fly in df.loc[date_mask, "Fly"].unique():
+                fly_mask = (df["Fly"] == fly) & date_mask
+                for trial in df.loc[fly_mask, "Trial"].unique():
+                    trial_mask = (df["Trial"] == trial) & fly_mask
+                    yield trial_mask
